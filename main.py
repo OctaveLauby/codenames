@@ -21,8 +21,10 @@ def load_words(language):
 
 
 def create_grid(words, page_size, card_size, save=None, show=None,
-                text_height=None, text_font=None,
-                back_c='white', line_c='light_grey', text_c='cyan'):
+                txt_height=None, txt_height_r=5,
+                top_txt_font=None, top_txt_c='blue',
+                bot_txt_font=None, bot_txt_c='cyan',
+                back_c='white', line_c='black'):
     """Create grid of words"""
 
     # ---- Read parameters
@@ -34,8 +36,10 @@ def create_grid(words, page_size, card_size, save=None, show=None,
     assert page_dx > card_dx, "Required card x-size must be smaller than page"
     assert page_dy > card_dy, "Required card y-size must be smaller than page"
 
-    text_height = card_dy // 5 if text_height is None else text_height
-    assert text_height < (card_dy // 2), "Text height must be at most half of page size"
+    txt_height = (card_dy // txt_height_r) if txt_height is None else txt_height
+    assert txt_height < (card_dy // 2), "Text height must be at most half of page size"
+    bot_txt_font = top_txt_font if bot_txt_font is None else bot_txt_font
+    bot_txt_c = top_txt_c if bot_txt_c is None else bot_txt_c
 
     # ---- Initiate Page
     window = Window(size=page_size, background=back_c)
@@ -49,8 +53,6 @@ def create_grid(words, page_size, card_size, save=None, show=None,
     logger.info(f"Grid built with {grid_di}x{grid_dj}={cell_nb} cells")
 
     # ---- Write Words
-    kwargs = {'color': text_c, 'align': "mid-mid", 'font': text_font}
-
     if len(words) > cell_nb:
         logger.warning(
             f"Too many words ({len(words)}) regarding the number of cells"
@@ -65,22 +67,33 @@ def create_grid(words, page_size, card_size, save=None, show=None,
         x += card_dx // 2
         y += card_dy // 2
         print(repr(word))
-        window.components.append(
-            components.Text(word, (x, y), **kwargs)
-        )
+        window.components += [
+            components.Text(
+                word.upper(), (x, y), height=txt_height,
+                align="bot-mid",
+                color=top_txt_c, font=top_txt_font
+            ),
+            components.Text(
+                word.upper(), (x, y), height=txt_height,
+                align="top-mid",  rotate=180,
+                color=bot_txt_c, font=bot_txt_font
+            ),
+        ]
 
 
     # ---- Return
     window.open()
+    if save:
+        pg.image.save(window.screen, join(OUTPUT_DIR, save))
     if show:
         window.wait_close()
     else:
         window.stop = True
-    if save:
-        pg.image.save(window.screen, join(OUTPUT_DIR, save))
 
 
 if __name__ == "__main__":
+    import random as rd
+
     # Params
     language = "english"
     page = (21, 29.7)
@@ -91,4 +104,14 @@ if __name__ == "__main__":
     page_size = int(page[0] * factor), int(page[1] * factor)
     card_size = int(card[0] * factor), int(card[1] * factor)
     words = load_words(language)
-    create_grid(words, page_size, card_size)
+    rd.shuffle(words)
+    create_grid(
+        words, page_size, card_size,
+        save="word_grid.jpg",
+        show=True,
+        line_c="light grey",
+
+        txt_height_r = 6,
+        top_txt_font="calibri",
+        top_txt_c="magenta",
+    )
