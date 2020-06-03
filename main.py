@@ -11,19 +11,28 @@ OUTPUT_DIR = "outputs"
 
 
 # --------------------------------------------------------------------------- #
-# ---- UTILS
+# ---- TOOLS
+
+def ij_enumerate(iterable, max_j):
+    """Enumerate iterable on (i,j) positions in matrix with max_j columns"""
+    for k, item in enumerate(iterable):
+        j = k // max_j
+        i = k % max_j
+        yield (i, j), item
+
+
+def xy_enumerate(iterable, max_j, x_step, y_step):
+    """Enumerate iterable on (x, y) positions in grid with max_j columns"""
+    for (i, j), item in ij_enumerate(iterable, max_j):
+        yield (i*x_step, j*y_step), item
+
+
+# --------------------------------------------------------------------------- #
+# ---- WINDOW UTILS
 
 GRID_PARAMS = {
     'color': 'light_grey',
 }
-
-def screenshot(window, output_path):
-    """Screenshot window"""
-    tick = window.ticks
-    wait_until(lambda: window.ticks > tick, timeout=5 * window.settings.fps)
-    path = join(OUTPUT_DIR, output_path)
-    mkdirs(dirname(path))
-    pg.image.save(window.screen, path)
 
 def display_grid(window, card_size, **params):
     params = read_params(params, GRID_PARAMS)
@@ -38,6 +47,14 @@ def display_grid(window, card_size, **params):
     cell_nb = grid_di * grid_dj
     logger.info(f"Grid built with {grid_di}x{grid_dj}={cell_nb} cells")
     return grid_di, grid_dj
+
+def screenshot(window, output_path):
+    """Screenshot window"""
+    tick = window.ticks
+    wait_until(lambda: window.ticks > tick, timeout=5 * window.settings.fps)
+    path = join(OUTPUT_DIR, output_path)
+    mkdirs(dirname(path))
+    pg.image.save(window.screen, path)
 
 
 # --------------------------------------------------------------------------- #
@@ -67,15 +84,12 @@ def load_words(dictionary):
 
 def display_word_cards(window, words, card_size, **params):
     """Display one grid of words on window"""
-    assert window.initiated, "Window must be initialized"
     params = read_params(params, WORD_PARAMS)
+    assert window.initiated, "Window must be initialized"
     window.components = []
 
     # ---- Read parameters
-    page_dx, page_dy = window.settings.size
     card_dx, card_dy = card_size
-    assert page_dx > card_dx, "Required card x-size must be smaller than page"
-    assert page_dy > card_dy, "Required card y-size must be smaller than page"
 
     txt_height = card_dy // params.txt_height_r
     txt_xmargin = card_dx // params.txt_xmargin_r
@@ -95,10 +109,7 @@ def display_word_cards(window, words, card_size, **params):
         )
         words = words[:cell_nb]
 
-    for k, word in enumerate(words):
-        j = k // grid_dj
-        i = k % grid_dj
-        x, y = i*card_dx, j*card_dy
+    for (x, y), word in xy_enumerate(words, grid_dj, card_dx, card_dy):
         ym = y+card_dy//2
         window.components += [
             Text(
@@ -145,9 +156,44 @@ def create_word_cards(window, words, card_size, directory, **params):
         screenshot(window, path_frmt.format(count))
 
 
-def create_validation_cards(window, card_size, ):
-    raise NotImplementedError
+# --------------------------------------------------------------------------- #
+# ---- COMPETITION CARDS
 
+GAME_PARAMS = {
+    't1_color': "tomato",
+    't2_color': "corn_flower_blue",
+    'board_size': (5, 5),
+    'guess_nb': 7,
+}
+
+def display_validation_cards(window, card_size, **params):
+    """Display validation cards on window"""
+    params = read_params(params, GAME_PARAMS)
+    assert window.initiated, "Window must be initialized"
+    window.components = []
+
+    # ---- Display grid
+
+    grid_di, grid_dj = display_grid(window, card_size)
+
+    # Display cards content
+    colors = (
+        [params.t1_color] * params.guess_nb
+        + [params.t1_color] * params.guess_nb
+    )
+    assert len(colors) + 1 <= (grid_di + grid_dj), (
+        "Not enough space to display all validation cards"
+    )
+    for x, y, color in xy_enumerate(colors, grid_dj, *card_size):
+        window.components.append(
+            Rectangle(
+                (x, y), card_size
+            )
+        )
+
+
+# --------------------------------------------------------------------------- #
+# ---- MAIN
 
 if __name__ == "__main__":
     import random as rd
@@ -161,7 +207,6 @@ if __name__ == "__main__":
     # Read Params
     page_size = int(page[0] * factor), int(page[1] * factor)
     card_size = int(card[0] * factor), int(card[1] * factor)
-
 
     # Initialize components
     window = Window(size=page_size, background='white')
