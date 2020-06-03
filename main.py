@@ -2,7 +2,7 @@ import pygame as pg
 from os.path import dirname, join
 from oldisplay import Window
 from oldisplay.collections import Color
-from oldisplay.components import Grid, Rectangle, Text
+from oldisplay.components import Disk, Grid, Rectangle, Text
 from olutils import load, mkdirs, read_params, wait_until
 from logzero import logger
 
@@ -33,6 +33,7 @@ def xy_enumerate(iterable, max_j, x_step, y_step):
 
 GRID_PARAMS = {
     'color': 'light_grey',
+    'width': 1,
 }
 
 def display_grid(window, card_size, **params):
@@ -42,11 +43,11 @@ def display_grid(window, card_size, **params):
     assert page_dx > card_dx, "Required card x-size must be smaller than page"
     assert page_dy > card_dy, "Required card y-size must be smaller than page"
 
-    window.components.append(Grid(card_dx, card_dy, color=params.color))
+    window.components.append(Grid(card_dx, card_dy, **params))
     grid_di = page_dy // card_dy
     grid_dj = page_dx // card_dx
     cell_nb = grid_di * grid_dj
-    logger.info(f"Grid built with {grid_di}x{grid_dj}={cell_nb} cells")
+    logger.debug(f"Grid built with {grid_di}x{grid_dj}={cell_nb} cells")
     return grid_di, grid_dj
 
 def screenshot(window, path):
@@ -60,6 +61,7 @@ def screenshot(window, path):
     wait_until(lambda: window.ticks > tick, timeout=5 * window.settings.fps)
     mkdirs(dirname(path))
     pg.image.save(window.screen, path)
+    logger.info(f"Screenshot made and saved at '{path}'")
 
 
 # --------------------------------------------------------------------------- #
@@ -74,7 +76,7 @@ WORD_PARAMS = {
     'bot_txt_font': None,
     'bot_txt_c': 'dodger_blue',
     'bot_txt_rect': 'lavender',
-    'line_c': GRID_PARAMS['color'],
+    'grid_c': GRID_PARAMS['color'],
 }
 
 
@@ -84,7 +86,7 @@ def load_words(dictionary):
         words = load(join(WORD_DIR, f"{dictionary}.txt"), w_eol=False)
     except FileNotFoundError:
         raise ValueError(f"No dictionary called {dictionary} in {WORD_DIR}")
-    logger.info(f"{len(words)} words loaded for dictionary '{dictionary}'")
+    logger.info(f"{len(words)} words loaded from dictionary '{dictionary}'")
     return words
 
 def display_word_cards(window, words, card_size, **params):
@@ -103,7 +105,7 @@ def display_word_cards(window, words, card_size, **params):
     bot_txt_c = params.top_txt_c if params.bot_txt_c is None else params.bot_txt_c
 
     # ---- Create Grid
-    grid_di, grid_dj = display_grid(window, card_size, color=params.line_c)
+    grid_di, grid_dj = display_grid(window, card_size, color=params.grid_c)
     cell_nb = grid_di * grid_dj
 
     # ---- Write Words
@@ -140,6 +142,7 @@ def display_word_cards(window, words, card_size, **params):
                 font=bot_txt_font
             ),
         ]
+    logger.debug(f"{len(words)} word cards displayed on window")
 
 
 def create_word_cards(window, words, card_size, directory, **params):
@@ -148,13 +151,13 @@ def create_word_cards(window, words, card_size, directory, **params):
     card_dx, card_dy = card_size
     grid_di = page_dy // card_dy
     grid_dj = page_dx // card_dx
-    cell_nb = grid_di * grid_dj
+    card_nb = grid_di * grid_dj
 
     path_frmt = join(directory, "word_cards_{:02d}.jpg")
-    for count, i in enumerate(range(0, len(words), cell_nb), 1):
+    for count, i in enumerate(range(0, len(words), card_nb), 1):
         display_word_cards(
             window,
-            words[i:i+cell_nb],
+            words[i:i+card_nb],
             card_size,
             **params
         )
@@ -165,11 +168,17 @@ def create_word_cards(window, words, card_size, directory, **params):
 # ---- COMPETITION CARDS
 
 GAME_PARAMS = {
-    't1_color': "tomato",
-    't2_color': "corn_flower_blue",
     'board_size': (5, 5),
     'guess_nb': 7,
+    't1_color': "tomato",
+    't2_color': "corn_flower_blue",
+    'neutral_color': "pale_golden_rod",
+    'death_color': "black",
+    'disk_r': 6,
+    'grid_c': GRID_PARAMS['color'],
 }
+
+# -- Validation Cards
 
 def display_validation_cards(window, card_size, **params):
     """Display validation cards on window"""
@@ -179,7 +188,7 @@ def display_validation_cards(window, card_size, **params):
 
     # ---- Display grid
 
-    grid_di, grid_dj = display_grid(window, card_size)
+    grid_di, grid_dj = display_grid(window, card_size, color=params.grid_c)
 
     # Display cards content
     colors = (
@@ -197,6 +206,7 @@ def display_validation_cards(window, card_size, **params):
         window.components.append(
             Rectangle((x, y), (sx, sy), color=color, align='center')
         )
+    logger.debug(f"{len(colors)} validation cards displayed on window")
 
 
 def create_validation_cards(window, card_size, directory, **params):
@@ -209,14 +219,70 @@ def create_validation_cards(window, card_size, directory, **params):
     screenshot(window, join(directory, "validation_cards.jpg"))
 
 
+# -- Board cards
+
 def display_board_cards(window, card_size, **params):
     """Display validation cards on window"""
     params = read_params(params, GAME_PARAMS)
     assert window.initiated, "Window must be initialized"
     window.components = []
 
-    raise NotImplementedError
+    card_dx, card_dy = card_size
+    cell_dx = card_dx // params.board_size[0]
+    cell_dy = card_dy // params.board_size[1]
 
+    # Main grid
+    grid_di, grid_dj = display_grid(window, card_size, color=params.grid_c, width=3)
+    card_nb = grid_di * grid_dj
+
+    # Card grids
+    card_di, card_dj = params.board_size
+    colors = [params.t1_color, params.t2_color] * (card_nb//2)
+    for (x, y), color in xy_enumerate(colors, grid_dj, *card_size):
+        # Inner grid
+        window.components.append(Grid(
+            cell_dx, cell_dy,
+            xbounds=(x, x+card_dx),
+            ybounds=(y, y+card_dy),
+            color=color,
+            inner_grid=True,
+        ))
+
+        # Card colors
+        positions = [
+            (x+i*cell_dx, y+j*cell_dy)
+            for i in range(card_di)
+            for j in range(card_dj)
+        ]
+        card_colors = (
+            [params.t1_color] * params.guess_nb
+            + [params.t2_color] * params.guess_nb
+            + [color, params.death_color]
+        )
+        assert len(card_colors) < len(positions)
+        card_colors += [params.neutral_color] * (len(positions)-len(card_colors))
+        rd.shuffle(card_colors)
+        radius = min(cell_dx, cell_dx) // params.disk_r
+        for (x, y), color in zip(positions, card_colors):
+            window.components.append(Disk(
+                (x+cell_dx//2, y+cell_dy//2),
+                radius=radius,
+                color=color
+            ))
+    logger.debug(f"{len(colors)} board cards displayed on window")
+
+
+def create_board_cards(window, card_size, directory, **params):
+    """Create grids of board cards"""
+    grid_nb = 2
+    path_frmt = join(directory, "board_cards_{:02d}.jpg")
+    for i in range(1, grid_nb+1):
+        display_board_cards(
+            window,
+            card_size,
+            **params
+        )
+        screenshot(window, path_frmt.format(i))
 
 # --------------------------------------------------------------------------- #
 # ---- MAIN
@@ -228,12 +294,14 @@ if __name__ == "__main__":
     dictionary = "english"
     output_dir = join(OUTPUT_DIR, f"output_{dictionary}")
     page = (29.7, 21)
-    card = (4, 2.5)
+    wcard = (4, 2.5)        # Word card
+    bcard = (5, 5)          # Board card
     factor = 45
 
     # Read Params
     page_size = int(page[0] * factor), int(page[1] * factor)
-    card_size = int(card[0] * factor), int(card[1] * factor)
+    wcard_size = int(wcard[0] * factor), int(wcard[1] * factor)
+    bcard_size = int(bcard[0] * factor), int(bcard[1] * factor)
 
     # Initialize components
     window = Window(size=page_size, background='white')
@@ -245,12 +313,17 @@ if __name__ == "__main__":
     create_word_cards(
         window,
         words,
-        card_size,
+        wcard_size,
         directory=output_dir,
     )
     create_validation_cards(
         window,
-        card_size,
+        wcard_size,
+        directory=output_dir,
+    )
+    create_board_cards(
+        window,
+        bcard_size,
         directory=output_dir,
     )
 
