@@ -1,6 +1,7 @@
 import pygame as pg
 from os.path import join
-from oldisplay import components, Window
+from oldisplay import Window
+from oldisplay.components import Grid, Rectangle, Text
 from olutils import load
 from logzero import logger
 
@@ -21,7 +22,7 @@ def load_words(language):
 
 
 def create_grid(words, page_size, card_size, save=None, show=None,
-                txt_height=None, txt_height_r=5,
+                txt_height_r=5, txt_xmargin_r=10, txt_ymargin_r=20,
                 top_txt_font=None, top_txt_c='blue',
                 bot_txt_font=None, bot_txt_c='cyan',
                 back_c='white', line_c='black'):
@@ -36,17 +37,19 @@ def create_grid(words, page_size, card_size, save=None, show=None,
     assert page_dx > card_dx, "Required card x-size must be smaller than page"
     assert page_dy > card_dy, "Required card y-size must be smaller than page"
 
-    txt_height = (card_dy // txt_height_r) if txt_height is None else txt_height
-    assert txt_height < (card_dy // 2), "Text height must be at most half of page size"
+    txt_height = card_dy // txt_height_r
+    txt_xmargin = card_dx // txt_xmargin_r
+    txt_ymargin = card_dy // txt_ymargin_r
     bot_txt_font = top_txt_font if bot_txt_font is None else bot_txt_font
     bot_txt_c = top_txt_c if bot_txt_c is None else bot_txt_c
+
 
     # ---- Initiate Page
     window = Window(size=page_size, background=back_c)
 
     # ---- Create Grid
     kwargs = {'color': line_c}
-    window.components.append(components.Grid(card_dx, card_dy, **kwargs))
+    window.components.append(Grid(card_dx, card_dy, **kwargs))
     grid_di = page_dy // card_dy
     grid_dj = page_dx // card_dx
     cell_nb = grid_di * grid_dj
@@ -64,19 +67,29 @@ def create_grid(words, page_size, card_size, save=None, show=None,
         j = k // grid_dj
         i = k % grid_dj
         x, y = i*card_dx, j*card_dy
-        x += card_dx // 2
-        y += card_dy // 2
-        print(repr(word))
+        ym = y+card_dy//2
         window.components += [
-            components.Text(
-                word.upper(), (x, y), height=txt_height,
-                align="bot-mid",
-                color=top_txt_c, font=top_txt_font
+            Text(
+                word.upper(),
+                (x+txt_xmargin, ym-txt_ymargin),
+                height=txt_height,
+                align="bot-left",
+                color=top_txt_c,
+                font=top_txt_font
             ),
-            components.Text(
-                word.upper(), (x, y), height=txt_height,
-                align="top-mid",  rotate=180,
-                color=bot_txt_c, font=bot_txt_font
+            # Rectangle(
+            #     (x+txt_xmargin, ym+txt_ymargin),
+            #     (card_dx-2*txt_xmargin, txt_height),
+            #     color='light grey'
+            # ),
+            Text(
+                word.upper(),
+                (x+card_dx-txt_xmargin, ym+txt_ymargin),
+                height=txt_height,
+                align="top-right",
+                rotate=180,
+                color=bot_txt_c,
+                font=bot_txt_font
             ),
         ]
 
@@ -96,9 +109,9 @@ if __name__ == "__main__":
 
     # Params
     language = "english"
-    page = (21, 29.7)
-    card = (4, 3)
-    factor = 30
+    page = (29.7, 21)
+    card = (4, 2.5)
+    factor = 45
 
     # Code
     page_size = int(page[0] * factor), int(page[1] * factor)
@@ -111,7 +124,9 @@ if __name__ == "__main__":
         show=True,
         line_c="light grey",
 
-        txt_height_r = 6,
-        top_txt_font="calibri",
+        txt_height_r = 5,
+        top_txt_font="cambria",
         top_txt_c="magenta",
+        bot_txt_font="calibri",
+        bot_txt_c="dodger blue",
     )
