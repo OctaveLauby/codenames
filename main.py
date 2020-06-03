@@ -9,7 +9,41 @@ from logzero import logger
 WORD_DIR = "words"
 OUTPUT_DIR = "outputs"
 
+
+# --------------------------------------------------------------------------- #
+# ---- UTILS
+
 GRID_PARAMS = {
+    'color': 'light_grey',
+}
+
+def screenshot(window, output_path):
+    """Screenshot window"""
+    tick = window.ticks
+    wait_until(lambda: window.ticks > tick, timeout=5 * window.settings.fps)
+    path = join(OUTPUT_DIR, output_path)
+    mkdirs(dirname(path))
+    pg.image.save(window.screen, path)
+
+def display_grid(window, card_size, **params):
+    params = read_params(params, GRID_PARAMS)
+    page_dx, page_dy = window.settings.size
+    card_dx, card_dy = card_size
+    assert page_dx > card_dx, "Required card x-size must be smaller than page"
+    assert page_dy > card_dy, "Required card y-size must be smaller than page"
+
+    window.components.append(Grid(card_dx, card_dy, color=params.color))
+    grid_di = page_dy // card_dy
+    grid_dj = page_dx // card_dx
+    cell_nb = grid_di * grid_dj
+    logger.info(f"Grid built with {grid_di}x{grid_dj}={cell_nb} cells")
+    return grid_di, grid_dj
+
+
+# --------------------------------------------------------------------------- #
+# ---- WORD CARDS
+
+WORD_PARAMS = {
     'txt_height_r': 6,
     'txt_xmargin_r': 10,
     'txt_ymargin_r': 20,
@@ -18,7 +52,7 @@ GRID_PARAMS = {
     'bot_txt_font': None,
     'bot_txt_c': 'dodger_blue',
     'bot_txt_rect': 'lavender',
-    'line_c': 'light_grey',
+    'line_c': GRID_PARAMS['color'],
 }
 
 
@@ -31,33 +65,10 @@ def load_words(dictionary):
     logger.info(f"{len(words)} words loaded for dictionary '{dictionary}'")
     return words
 
-def screenshot(window, output_path):
-    """Screenshot window"""
-    tick = window.ticks
-    wait_until(lambda: window.ticks > tick, timeout=5 * window.settings.fps)
-    path = join(OUTPUT_DIR, output_path)
-    mkdirs(dirname(path))
-    pg.image.save(window.screen, path)
-
-
-def display_grid(window, card_size, color):
-    page_dx, page_dy = window.settings.size
-    card_dx, card_dy = card_size
-    assert page_dx > card_dx, "Required card x-size must be smaller than page"
-    assert page_dy > card_dy, "Required card y-size must be smaller than page"
-
-    kwargs = {'color': color}
-    window.components.append(Grid(card_dx, card_dy, **kwargs))
-    grid_di = page_dy // card_dy
-    grid_dj = page_dx // card_dx
-    cell_nb = grid_di * grid_dj
-    logger.info(f"Grid built with {grid_di}x{grid_dj}={cell_nb} cells")
-    return grid_di, grid_dj
-
 def display_word_cards(window, words, card_size, **params):
     """Display one grid of words on window"""
     assert window.initiated, "Window must be initialized"
-    params = read_params(params, GRID_PARAMS)
+    params = read_params(params, WORD_PARAMS)
     window.components = []
 
     # ---- Read parameters
