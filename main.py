@@ -4,6 +4,7 @@ from PIL import Image, ImageDraw
 from logzero import logger
 
 from colors import Color
+from fonts import get_font
 
 WORD_DIR = "words"
 OUTPUT_DIR = "outputs"
@@ -21,26 +22,35 @@ def load_words(language):
 
 
 def create_grid(words, page_size, card_size, save=None, show=None,
+                text_height=None, text_font=None,
                 back_c='white', line_c='grey', text_c='cyan'):
     """Create grid of words"""
+
+    # ---- Read parameters
     show = True if save is None and show is None else show
     assert save or show, "Create grid requires to at least save or show result"
+
+    page_dx, page_dy = page_size
+    card_dx, card_dy = card_size
+    assert page_dx > card_dx, "Required card x-size must be smaller than page"
+    assert page_dy > card_dy, "Required card y-size must be smaller than page"
+
+    text_height = card_dy // 5 if text_height is None else text_height
+    assert text_height < (card_dy // 2), "Text height must be at most half of page size"
+    font = get_font(text_font, text_height)
 
     # ---- Initiate Page
     img = Image.new('RGB', page_size, color=Color.get(back_c))
     draw = ImageDraw.Draw(img)
 
     # ---- Create Grid
-    page_dx, page_dy = page_size
-    card_dx, card_dy = card_size
-    assert page_dx > card_dx, "Required card x-size must be smaller than page"
-    assert page_dy > card_dy, "Required card y-size must be smaller than page"
+    kwargs = {'fill': Color.get(line_c)}
 
     # Horizontal Lines
     grid_dj = -1
     position = 0
     while position < page_dx:
-        draw.line((position, 0, position, page_dy), fill=Color.get(line_c))
+        draw.line((position, 0, position, page_dy), **kwargs)
         grid_dj += 1
         position += card_dx
 
@@ -48,7 +58,7 @@ def create_grid(words, page_size, card_size, save=None, show=None,
     grid_di = -1
     position = 0
     while position < page_dy:
-        draw.line((0, position, page_dx, position), fill=Color.get(line_c))
+        draw.line((0, position, page_dx, position), **kwargs)
         grid_di += 1
         position += card_dy
 
@@ -56,6 +66,8 @@ def create_grid(words, page_size, card_size, save=None, show=None,
     logger.info(f"Grid built with {grid_di}x{grid_dj}={cell_nb} cells")
 
     # ---- Write Words
+    kwargs = {'fill': Color.get(text_c), 'align': "center", 'font': font}
+
     if len(words) > cell_nb:
         logger.warning(
             f"Too many words ({len(words)}) regarding the number of cells"
@@ -69,12 +81,15 @@ def create_grid(words, page_size, card_size, save=None, show=None,
         x, y = i*card_dx, j*card_dy
         x += card_dx // 2
         y += card_dy // 2
-        draw.text((x, y), word, fill=Color.get(text_c), align='center')
+        draw.text((x, y), word, **kwargs)
 
+
+    # ---- Return
     if save:
         img.save(join(OUTPUT_DIR, save))
     if show:
         img.show()
+    return img
 
 
 
