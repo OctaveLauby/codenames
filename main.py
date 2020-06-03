@@ -13,7 +13,7 @@ OUTPUT_DIR = "outputs"
 def load_words(language):
     """Load available words for given language"""
     try:
-        words = load(join(WORD_DIR, f"{language}.txt"))
+        words = load(join(WORD_DIR, f"{language}.txt"), w_eol=False)
     except FileNotFoundError:
         raise ValueError(f"No words could be find for {language} language")
     logger.info(f"{len(words)} words loaded for language {language}")
@@ -22,7 +22,7 @@ def load_words(language):
 
 def create_grid(words, page_size, card_size, save=None, show=None,
                 text_height=None, text_font=None,
-                back_c='white', line_c='grey', text_c='cyan'):
+                back_c='white', line_c='light_grey', text_c='cyan'):
     """Create grid of words"""
 
     # ---- Read parameters
