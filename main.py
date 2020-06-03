@@ -11,21 +11,35 @@ OUTPUT_DIR = "outputs"
 
 
 
-def load_words(language):
-    """Load available words for given language"""
+def load_words(dictionary):
+    """Load available words for given dictionary"""
     try:
-        words = load(join(WORD_DIR, f"{language}.txt"), w_eol=False)
+        words = load(join(WORD_DIR, f"{dictionary}.txt"), w_eol=False)
     except FileNotFoundError:
-        raise ValueError(f"No words could be find for {language} language")
-    logger.info(f"{len(words)} words loaded for language {language}")
+        raise ValueError(f"No dictionary called {dictionary} in {WORD_DIR}")
+    logger.info(f"{len(words)} words loaded for dictionary '{dictionary}'")
     return words
 
 
-def create_grid(words, page_size, card_size, save=None, show=None,
-                txt_height_r=5, txt_xmargin_r=10, txt_ymargin_r=20,
-                top_txt_font=None, top_txt_c='blue',
-                bot_txt_font=None, bot_txt_c='cyan',
-                back_c='white', line_c='black'):
+def create_word_grid(
+        words, page_size, card_size,
+        save=None,
+        show=None,
+
+        txt_height_r=6,
+        txt_xmargin_r=10,
+        txt_ymargin_r=20,
+
+        top_txt_font='consolas',
+        top_txt_c='magenta',
+
+        bot_txt_font=None,
+        bot_txt_c='dodger_blue',
+        bot_txt_rect='lavender',
+
+        back_c='white',
+        line_c='light_grey'
+    ):
     """Create grid of words"""
 
     # ---- Read parameters
@@ -77,11 +91,11 @@ def create_grid(words, page_size, card_size, save=None, show=None,
                 color=top_txt_c,
                 font=top_txt_font
             ),
-            # Rectangle(
-            #     (x+txt_xmargin, ym+txt_ymargin),
-            #     (card_dx-2*txt_xmargin, txt_height),
-            #     color='light grey'
-            # ),
+            Rectangle(
+                (x+txt_xmargin, ym+txt_ymargin//2),
+                (card_dx-3*txt_xmargin//2, txt_height+txt_ymargin),
+                color=bot_txt_rect,
+            ),
             Text(
                 word.upper(),
                 (x+card_dx-txt_xmargin, ym+txt_ymargin),
@@ -108,7 +122,7 @@ if __name__ == "__main__":
     import random as rd
 
     # Params
-    language = "english"
+    dictionary = "english"
     page = (29.7, 21)
     card = (4, 2.5)
     factor = 45
@@ -116,17 +130,10 @@ if __name__ == "__main__":
     # Code
     page_size = int(page[0] * factor), int(page[1] * factor)
     card_size = int(card[0] * factor), int(card[1] * factor)
-    words = load_words(language)
+    words = load_words(dictionary)
     rd.shuffle(words)
-    create_grid(
+    create_word_grid(
         words, page_size, card_size,
         save="word_grid.jpg",
         show=True,
-        line_c="light grey",
-
-        txt_height_r = 5,
-        top_txt_font="cambria",
-        top_txt_c="magenta",
-        bot_txt_font="calibri",
-        bot_txt_c="dodger blue",
     )
