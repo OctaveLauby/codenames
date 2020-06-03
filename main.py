@@ -169,7 +169,7 @@ def create_word_cards(window, words, card_size, directory, **params):
 
 GAME_PARAMS = {
     'board_size': (5, 5),
-    'guess_nb': 7,
+    'guess_nb': 8,
     't1_color': "tomato",
     't2_color': "corn_flower_blue",
     'neutral_color': "pale_golden_rod",
