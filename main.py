@@ -2,12 +2,25 @@ import pygame as pg
 from os.path import join
 from oldisplay import Window
 from oldisplay.components import Grid, Rectangle, Text
-from olutils import load
+from olutils import load, read_params
 from logzero import logger
 
 
 WORD_DIR = "words"
 OUTPUT_DIR = "outputs"
+
+GRID_PARAMS = {
+    'txt_height_r': 6,
+    'txt_xmargin_r': 10,
+    'txt_ymargin_r': 20,
+    'top_txt_font': 'consolas',
+    'top_txt_c': 'magenta',
+    'bot_txt_font': None,
+    'bot_txt_c': 'dodger_blue',
+    'bot_txt_rect': 'lavender',
+    'back_c': 'white',
+    'line_c': 'light_grey',
+}
 
 
 
@@ -21,26 +34,9 @@ def load_words(dictionary):
     return words
 
 
-def create_word_grid(
-        words, page_size, card_size,
-        save=None,
-        show=None,
-
-        txt_height_r=6,
-        txt_xmargin_r=10,
-        txt_ymargin_r=20,
-
-        top_txt_font='consolas',
-        top_txt_c='magenta',
-
-        bot_txt_font=None,
-        bot_txt_c='dodger_blue',
-        bot_txt_rect='lavender',
-
-        back_c='white',
-        line_c='light_grey'
-    ):
+def create_word_grid(words, page_size, card_size, save=None, show=None, **params):
     """Create grid of words"""
+    params = read_params(params, GRID_PARAMS)
 
     # ---- Read parameters
     show = True if save is None and show is None else show
@@ -51,18 +47,18 @@ def create_word_grid(
     assert page_dx > card_dx, "Required card x-size must be smaller than page"
     assert page_dy > card_dy, "Required card y-size must be smaller than page"
 
-    txt_height = card_dy // txt_height_r
-    txt_xmargin = card_dx // txt_xmargin_r
-    txt_ymargin = card_dy // txt_ymargin_r
-    bot_txt_font = top_txt_font if bot_txt_font is None else bot_txt_font
-    bot_txt_c = top_txt_c if bot_txt_c is None else bot_txt_c
+    txt_height = card_dy // params.txt_height_r
+    txt_xmargin = card_dx // params.txt_xmargin_r
+    txt_ymargin = card_dy // params.txt_ymargin_r
+    bot_txt_font = params.top_txt_font if params.bot_txt_font is None else params.bot_txt_font
+    bot_txt_c = params.top_txt_c if params.bot_txt_c is None else params.bot_txt_c
 
 
     # ---- Initiate Page
-    window = Window(size=page_size, background=back_c)
+    window = Window(size=page_size, background=params.back_c)
 
     # ---- Create Grid
-    kwargs = {'color': line_c}
+    kwargs = {'color': params.line_c}
     window.components.append(Grid(card_dx, card_dy, **kwargs))
     grid_di = page_dy // card_dy
     grid_dj = page_dx // card_dx
@@ -88,13 +84,13 @@ def create_word_grid(
                 (x+txt_xmargin, ym-txt_ymargin),
                 height=txt_height,
                 align="bot-left",
-                color=top_txt_c,
-                font=top_txt_font
+                color=params.top_txt_c,
+                font=params.top_txt_font
             ),
             Rectangle(
                 (x+txt_xmargin, ym+txt_ymargin//2),
                 (card_dx-3*txt_xmargin//2, txt_height+txt_ymargin),
-                color=bot_txt_rect,
+                color=params.bot_txt_rect,
             ),
             Text(
                 word.upper(),
@@ -116,6 +112,11 @@ def create_word_grid(
         window.wait_close()
     else:
         window.stop = True
+
+
+def create_word_grids(words, page_size, card_size, output, **params):
+    raise NotImplementedError
+
 
 
 if __name__ == "__main__":
