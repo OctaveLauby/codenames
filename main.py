@@ -48,11 +48,15 @@ def display_grid(window, card_size, **params):
     logger.info(f"Grid built with {grid_di}x{grid_dj}={cell_nb} cells")
     return grid_di, grid_dj
 
-def screenshot(window, output_path):
-    """Screenshot window"""
+def screenshot(window, path):
+    """Screenshot window
+
+    Args:
+        window (oldisplay.Window)
+        output (str): relative path to output directory to save screenshot
+    """
     tick = window.ticks
     wait_until(lambda: window.ticks > tick, timeout=5 * window.settings.fps)
-    path = join(OUTPUT_DIR, output_path)
     mkdirs(dirname(path))
     pg.image.save(window.screen, path)
 
@@ -186,11 +190,17 @@ def display_validation_cards(window, card_size, **params):
     )
     for x, y, color in xy_enumerate(colors, grid_dj, *card_size):
         window.components.append(
-            Rectangle(
-                (x, y), card_size
-            )
+            Rectangle((x, y), card_size, color=color)
         )
 
+
+def create_validation_cards(window, card_size, directory, **params):
+    display_validation_cards(
+        window,
+        card_size,
+        **params
+    )
+    screenshot(window, join(directory, "validation_cards.jpg"))
 
 # --------------------------------------------------------------------------- #
 # ---- MAIN
@@ -200,6 +210,7 @@ if __name__ == "__main__":
 
     # Params
     dictionary = "english"
+    output_dir = join(OUTPUT_DIR, f"output_{dictionary}")
     page = (29.7, 21)
     card = (4, 2.5)
     factor = 45
@@ -219,7 +230,7 @@ if __name__ == "__main__":
         window,
         words,
         card_size,
-        directory=f"output_{dictionary}"
+        directory=output_dir,
     )
 
     # End
