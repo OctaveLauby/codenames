@@ -1,6 +1,7 @@
 import pygame as pg
 from os.path import dirname, join
 from oldisplay import Window
+from oldisplay.collections import Color
 from oldisplay.components import Grid, Rectangle, Text
 from olutils import load, mkdirs, read_params, wait_until
 from logzero import logger
@@ -183,24 +184,39 @@ def display_validation_cards(window, card_size, **params):
     # Display cards content
     colors = (
         [params.t1_color] * params.guess_nb
-        + [params.t1_color] * params.guess_nb
+        + [params.t2_color] * params.guess_nb
+        + [Color.mix(params.t1_color, params.t2_color)]
     )
-    assert len(colors) + 1 <= (grid_di + grid_dj), (
+    assert len(colors) <= (grid_di * grid_dj), (
         "Not enough space to display all validation cards"
     )
-    for x, y, color in xy_enumerate(colors, grid_dj, *card_size):
+    dx, dy = card_size
+    sx, sy = dx//3, dy//3
+    for (x, y), color in xy_enumerate(colors, grid_dj, *card_size):
+        x, y = x+dx//2, y+dy//2
         window.components.append(
-            Rectangle((x, y), card_size, color=color)
+            Rectangle((x, y), (sx, sy), color=color, align='center')
         )
 
 
 def create_validation_cards(window, card_size, directory, **params):
+    """Create grid of validation cards"""
     display_validation_cards(
         window,
         card_size,
         **params
     )
     screenshot(window, join(directory, "validation_cards.jpg"))
+
+
+def display_board_cards(window, card_size, **params):
+    """Display validation cards on window"""
+    params = read_params(params, GAME_PARAMS)
+    assert window.initiated, "Window must be initialized"
+    window.components = []
+
+    raise NotImplementedError
+
 
 # --------------------------------------------------------------------------- #
 # ---- MAIN
@@ -229,6 +245,11 @@ if __name__ == "__main__":
     create_word_cards(
         window,
         words,
+        card_size,
+        directory=output_dir,
+    )
+    create_validation_cards(
+        window,
         card_size,
         directory=output_dir,
     )
