@@ -1,10 +1,9 @@
+import pygame as pg
 from os.path import join
+from oldisplay import components, Window
 from olutils import load
-from PIL import Image, ImageDraw
 from logzero import logger
 
-from colors import Color
-from fonts import get_font
 
 WORD_DIR = "words"
 OUTPUT_DIR = "outputs"
@@ -37,36 +36,20 @@ def create_grid(words, page_size, card_size, save=None, show=None,
 
     text_height = card_dy // 5 if text_height is None else text_height
     assert text_height < (card_dy // 2), "Text height must be at most half of page size"
-    font = get_font(text_font, text_height)
 
     # ---- Initiate Page
-    img = Image.new('RGB', page_size, color=Color.get(back_c))
-    draw = ImageDraw.Draw(img)
+    window = Window(size=page_size, background=back_c)
 
     # ---- Create Grid
-    kwargs = {'fill': Color.get(line_c)}
-
-    # Horizontal Lines
-    grid_dj = -1
-    position = 0
-    while position < page_dx:
-        draw.line((position, 0, position, page_dy), **kwargs)
-        grid_dj += 1
-        position += card_dx
-
-    # Vertical Lines
-    grid_di = -1
-    position = 0
-    while position < page_dy:
-        draw.line((0, position, page_dx, position), **kwargs)
-        grid_di += 1
-        position += card_dy
-
+    kwargs = {'color': line_c}
+    window.components.append(components.Grid(card_dx, card_dy, **kwargs))
+    grid_di = page_dy // card_dy
+    grid_dj = page_dx // card_dx
     cell_nb = grid_di * grid_dj
     logger.info(f"Grid built with {grid_di}x{grid_dj}={cell_nb} cells")
 
     # ---- Write Words
-    kwargs = {'fill': Color.get(text_c), 'align': "center", 'font': font}
+    kwargs = {'color': text_c, 'align': "mid-mid", 'font': text_font}
 
     if len(words) > cell_nb:
         logger.warning(
@@ -81,23 +64,31 @@ def create_grid(words, page_size, card_size, save=None, show=None,
         x, y = i*card_dx, j*card_dy
         x += card_dx // 2
         y += card_dy // 2
-        draw.text((x, y), word, **kwargs)
+        print(repr(word))
+        window.components.append(
+            components.Text(word, (x, y), **kwargs)
+        )
 
 
     # ---- Return
-    if save:
-        img.save(join(OUTPUT_DIR, save))
+    window.open()
     if show:
-        img.show()
-    return img
-
-
+        window.wait_close()
+    else:
+        window.stop = True
+    if save:
+        pg.image.save(window.screen, join(OUTPUT_DIR, save))
 
 
 if __name__ == "__main__":
     # Params
     language = "english"
+    page = (21, 29.7)
+    card = (4, 3)
+    factor = 30
 
     # Code
+    page_size = int(page[0] * factor), int(page[1] * factor)
+    card_size = int(card[0] * factor), int(card[1] * factor)
     words = load_words(language)
-    create_grid(words, (2100, 2970), (400, 300))
+    create_grid(words, page_size, card_size)
