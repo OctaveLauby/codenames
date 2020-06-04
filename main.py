@@ -129,7 +129,13 @@ def load_words(dictionary):
         )
     except FileNotFoundError:
         raise ValueError(f"No dictionary called {dictionary} in {WORD_DIR}")
-    logger.info(f"{len(words)} words loaded from dictionary '{dictionary}'")
+    words_nb = len(words)
+    words = sorted(set([word.lower() for word in words]))
+    duplicates = words_nb - len(words)
+    logger.info(
+        f"{len(words)} words loaded from dictionary '{dictionary}'"
+        f", {duplicates} duplicates ignored"
+    )
     return words
 
 def display_word_cards(window, words, card_size, **params):
@@ -188,17 +194,13 @@ def display_word_cards(window, words, card_size, **params):
 
 def create_word_cards(window, words, card_size, directory, **params):
     """Create grids of word cards"""
-    page_x, page_y = page_size
-    card_x, card_y = card_size
-    grid_di = page_y // card_y
-    grid_dj = page_x // card_x
-    card_nb = grid_di * grid_dj
+    grid = CardGrid(window, card_size)
 
     path_frmt = join(directory, "word_cards_{:02d}.jpg")
-    for count, i in enumerate(range(0, len(words), card_nb), 1):
+    for count, i in enumerate(range(0, len(words), grid.cell_nb), 1):
         display_word_cards(
             window,
-            words[i:i+card_nb],
+            words[i:i+grid.cell_nb],
             card_size,
             **params
         )
@@ -275,7 +277,6 @@ def display_board_cards(window, card_size, **params):
     cell_dy = grid.dy // params.board_size[1]
     cell_di, cell_dj = params.board_size
     colors = [params.t1_color, params.t2_color] * (grid.cell_nb//2)
-    print(grid.cell_nb, len(colors))
     for (x, y), color in grid.xy_enum(colors):
         # Inner grid
         window.components.append(Grid(
