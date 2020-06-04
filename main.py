@@ -17,6 +17,7 @@ OUTPUT_DIR = "outputs"
 GRID_PARAMS = {
     'color': 'light_grey',
     'width': 1,
+    'xy_margin': (10, 10),
 }
 
 
@@ -24,22 +25,33 @@ class CardGrid:
 
     def __init__(self, window, card_size, **params):
         params = read_params(params, GRID_PARAMS)
-        page_dx, page_dy = window.settings.size
-        card_dx, card_dy = card_size
-        assert page_dx > card_dx, "Required card x-size must be smaller than page"
-        assert page_dy > card_dy, "Required card y-size must be smaller than page"
 
-        grid_di = page_dy // card_dy
-        grid_dj = page_dx // card_dx
-        cell_nb = grid_di * grid_dj
+        # Page dimensions
+        page_x, page_y = window.settings.size
+        x_margin, y_margin = params.pop('xy_margin')
+        assert page_x > 2*x_margin, "x-margin must be twice smaller than page x-size"
+        assert page_y > 2*y_margin, "y-margin must be twice smaller than page y-size"
+        params['xbounds'] = (x_margin, page_x-x_margin)
+        params['ybounds'] = (y_margin, page_y-y_margin)
 
+        # Card dimensions
+        card_x, card_y = card_size
+        assert page_x > card_x, "card x-size must be smaller than page x-size"
+        assert page_y > card_y, "card y-size must be smaller than page y-size"
+
+        # Grid information
+        i_max = (page_y-2*y_margin) // card_y
+        j_max = (page_x-2*x_margin) // card_x
+        cell_nb = i_max * j_max
+
+        # Attributes
         self.params = params
         self.window = window
-        self.i_max = grid_di
-        self.j_max = grid_dj
-        self.start = (0, 0)
-        self.dx = card_dx
-        self.dy = card_dy
+        self.i_max = i_max
+        self.j_max = j_max
+        self.start = (x_margin, y_margin)
+        self.dx = card_x
+        self.dy = card_y
         self.cell_nb = cell_nb
         logger.debug(
             f"Grid initialized with {self.i_max}x{self.j_max}={self.cell_nb} cells"
@@ -57,9 +69,9 @@ class CardGrid:
                 f" ({self.cell_nb}), last items will be skipped"
             )
         for k, item in enumerate(items):
-            j = k // self.j_max
-            i = k % self.j_max
-            if i > self.i_max:
+            j = k % self.j_max
+            i = k // self.j_max
+            if i >= self.i_max:
                 break
             yield (i, j), item
 
@@ -68,7 +80,7 @@ class CardGrid:
         """Enumerate items with x,y cell-positions (top-left)"""
         x0, y0 = self.start
         for (i, j), item in self.ij_enum(items):
-            yield (x0 + i * self.dx, y0 + j * self.dy), item
+            yield (x0+j*self.dx, y0+i*self.dy), item
 
 
 def build_display_grid(window, card_size, **params):
@@ -176,10 +188,10 @@ def display_word_cards(window, words, card_size, **params):
 
 def create_word_cards(window, words, card_size, directory, **params):
     """Create grids of word cards"""
-    page_dx, page_dy = page_size
-    card_dx, card_dy = card_size
-    grid_di = page_dy // card_dy
-    grid_dj = page_dx // card_dx
+    page_x, page_y = page_size
+    card_x, card_y = card_size
+    grid_di = page_y // card_y
+    grid_dj = page_x // card_x
     card_nb = grid_di * grid_dj
 
     path_frmt = join(directory, "word_cards_{:02d}.jpg")
@@ -263,6 +275,7 @@ def display_board_cards(window, card_size, **params):
     cell_dy = grid.dy // params.board_size[1]
     cell_di, cell_dj = params.board_size
     colors = [params.t1_color, params.t2_color] * (grid.cell_nb//2)
+    print(grid.cell_nb, len(colors))
     for (x, y), color in grid.xy_enum(colors):
         # Inner grid
         window.components.append(Grid(
