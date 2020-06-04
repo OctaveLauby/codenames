@@ -4,8 +4,7 @@ from oldisplay import Window
 from oldisplay.collections import Color
 from oldisplay.components import Disk, Grid, Rectangle, Text
 from olutils import load, mkdirs, read_params, wait_until
-from logzero import logger
-
+from logzero import logger, loglevel
 
 WORD_DIR = "words"
 OUTPUT_DIR = "outputs"
@@ -42,8 +41,6 @@ class CardGrid:
 
     def __init__(self, window, card_size, **params):
         params = read_params(params, GRID_PARAMS)
-        print(params)
-
 
         # Page dimensions
         page_x, page_y = window.settings.size
@@ -347,6 +344,7 @@ def create_board_cards(window, card_size, directory, **params):
 
 if __name__ == "__main__":
     import random as rd
+    loglevel("INFO")
 
     # Params
     dictionary = "french"
