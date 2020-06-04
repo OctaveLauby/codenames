@@ -12,24 +12,6 @@ OUTPUT_DIR = "outputs"
 
 
 # --------------------------------------------------------------------------- #
-# ---- TOOLS
-
-def ij_enumerate(iterable, max_j):
-    """Enumerate iterable on (i,j) positions in matrix with max_j columns"""
-    for k, item in enumerate(iterable):
-        j = k // max_j
-        i = k % max_j
-        yield (i, j), item
-
-
-def xy_enumerate(iterable, max_j, x_step, y_step, start=(0, 0)):
-    """Enumerate iterable on (x, y) positions in grid with max_j columns"""
-    x0, y0 = start
-    for (i, j), item in ij_enumerate(iterable, max_j):
-        yield (x0+i*x_step, y0+j*y_step), item
-
-
-# --------------------------------------------------------------------------- #
 # ---- WINDOW UTILS
 
 GRID_PARAMS = {
@@ -53,18 +35,40 @@ class CardGrid:
 
         self.params = params
         self.window = window
-        self.di = grid_di
-        self.dj = grid_dj
+        self.i_max = grid_di
+        self.j_max = grid_dj
+        self.start = (0, 0)
         self.dx = card_dx
         self.dy = card_dy
         self.cell_nb = cell_nb
         logger.debug(
-            f"Grid initialized with {self.di}x{self.dj}={self.cell_nb} cells"
+            f"Grid initialized with {self.i_max}x{self.j_max}={self.cell_nb} cells"
         )
 
     def display(self):
         """Add grid to window components"""
         self.window.components.append(Grid(self.dx, self.dy, **self.params))
+
+    def ij_enum(self, items):
+        """Enumerate items with i,j cell-positions"""
+        if len(items) > self.cell_nb:
+            logger.waring(
+                f"There are more items ({len(items)}) than the number of cells"
+                f" ({self.cell_nb}), last items will be skipped"
+            )
+        for k, item in enumerate(items):
+            j = k // self.j_max
+            i = k % self.j_max
+            if i > self.i_max:
+                break
+            yield (i, j), item
+
+
+    def xy_enum(self, items):
+        """Enumerate items with x,y cell-positions (top-left)"""
+        x0, y0 = self.start
+        for (i, j), item in self.ij_enum(items):
+            yield (x0 + i * self.dx, y0 + j * self.dy), item
 
 
 def build_display_grid(window, card_size, **params):
@@ -141,7 +145,7 @@ def display_word_cards(window, words, card_size, **params):
         )
         words = words[:grid.cell_nb]
 
-    for (x, y), word in xy_enumerate(words, grid.dj, grid.dx, grid.dy):
+    for (x, y), word in grid.xy_enum(words):
         ym = y+grid.dy//2
         window.components += [
             Text(
@@ -220,11 +224,11 @@ def display_validation_cards(window, card_size, **params):
         + [params.t2_color] * params.guess_nb
         + [Color.mix(params.t1_color, params.t2_color)]
     )
-    assert len(colors) <= (grid.di * grid.dj), (
+    assert len(colors) <= (grid.i_max * grid.j_max), (
         "Not enough space to display all validation cards"
     )
     sx, sy = grid.dx//3, grid.dy//3
-    for (x, y), color in xy_enumerate(colors, grid.dj, *card_size):
+    for (x, y), color in grid.xy_enum(colors):
         x, y = x+grid.dx//2, y+grid.dy//2
         window.components.append(
             Rectangle((x, y), (sx, sy), color=color, align='center')
@@ -259,7 +263,7 @@ def display_board_cards(window, card_size, **params):
     cell_dy = grid.dy // params.board_size[1]
     cell_di, cell_dj = params.board_size
     colors = [params.t1_color, params.t2_color] * (grid.cell_nb//2)
-    for (x, y), color in xy_enumerate(colors, grid.dj, *card_size):
+    for (x, y), color in grid.xy_enum(colors):
         # Inner grid
         window.components.append(Grid(
             cell_dx, cell_dy,
