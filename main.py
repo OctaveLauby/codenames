@@ -295,11 +295,11 @@ if __name__ == "__main__":
     import random as rd
 
     # Params
-    dictionary = "english"
+    dictionary = "french"
     output_dir = join(OUTPUT_DIR, f"output_{dictionary}")
     page = (29.7, 21)
-    wcard = (4, 2.5)        # Word card
-    bcard = (5, 5)          # Board card
+    wcard = (5, 3.5)        # Word card
+    bcard = (6, 6)          # Board card
     factor = 45
 
     # Read Params
