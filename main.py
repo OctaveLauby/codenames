@@ -83,7 +83,11 @@ WORD_PARAMS = {
 def load_words(dictionary):
     """Load available words for given dictionary"""
     try:
-        words = load(join(WORD_DIR, f"{dictionary}.txt"), w_eol=False)
+        words = load(
+            join(WORD_DIR, f"{dictionary}.txt"),
+            w_eol=False,
+            encoding="utf-8"
+        )
     except FileNotFoundError:
         raise ValueError(f"No dictionary called {dictionary} in {WORD_DIR}")
     logger.info(f"{len(words)} words loaded from dictionary '{dictionary}'")
