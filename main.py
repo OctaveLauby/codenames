@@ -22,10 +22,11 @@ def ij_enumerate(iterable, max_j):
         yield (i, j), item
 
 
-def xy_enumerate(iterable, max_j, x_step, y_step):
+def xy_enumerate(iterable, max_j, x_step, y_step, start=(0, 0)):
     """Enumerate iterable on (x, y) positions in grid with max_j columns"""
+    x0, y0 = start
     for (i, j), item in ij_enumerate(iterable, max_j):
-        yield (i*x_step, j*y_step), item
+        yield (x0+i*x_step, y0+j*y_step), item
 
 
 # --------------------------------------------------------------------------- #
@@ -36,19 +37,41 @@ GRID_PARAMS = {
     'width': 1,
 }
 
-def display_grid(window, card_size, **params):
-    params = read_params(params, GRID_PARAMS)
-    page_dx, page_dy = window.settings.size
-    card_dx, card_dy = card_size
-    assert page_dx > card_dx, "Required card x-size must be smaller than page"
-    assert page_dy > card_dy, "Required card y-size must be smaller than page"
 
-    window.components.append(Grid(card_dx, card_dy, **params))
-    grid_di = page_dy // card_dy
-    grid_dj = page_dx // card_dx
-    cell_nb = grid_di * grid_dj
-    logger.debug(f"Grid built with {grid_di}x{grid_dj}={cell_nb} cells")
-    return grid_di, grid_dj
+class CardGrid:
+
+    def __init__(self, window, card_size, **params):
+        params = read_params(params, GRID_PARAMS)
+        page_dx, page_dy = window.settings.size
+        card_dx, card_dy = card_size
+        assert page_dx > card_dx, "Required card x-size must be smaller than page"
+        assert page_dy > card_dy, "Required card y-size must be smaller than page"
+
+        grid_di = page_dy // card_dy
+        grid_dj = page_dx // card_dx
+        cell_nb = grid_di * grid_dj
+
+        self.params = params
+        self.window = window
+        self.di = grid_di
+        self.dj = grid_dj
+        self.dx = card_dx
+        self.dy = card_dy
+        self.cell_nb = cell_nb
+        logger.debug(
+            f"Grid initialized with {self.di}x{self.dj}={self.cell_nb} cells"
+        )
+
+    def display(self):
+        """Add grid to window components"""
+        self.window.components.append(Grid(self.dx, self.dy, **self.params))
+
+
+def build_display_grid(window, card_size, **params):
+    grid = CardGrid(window, card_size, **params)
+    grid.display()
+    return grid
+
 
 def screenshot(window, path):
     """Screenshot window
@@ -99,29 +122,27 @@ def display_word_cards(window, words, card_size, **params):
     assert window.initiated, "Window must be initialized"
     window.components = []
 
-    # ---- Read parameters
-    card_dx, card_dy = card_size
+    # ---- Create Grid
+    grid = build_display_grid(window, card_size, color=params.grid_c)
 
-    txt_height = card_dy // params.txt_height_r
-    txt_xmargin = card_dx // params.txt_xmargin_r
-    txt_ymargin = card_dy // params.txt_ymargin_r
+    # ---- Read parameters
+    txt_height = grid.dy // params.txt_height_r
+    txt_xmargin = grid.dx // params.txt_xmargin_r
+    txt_ymargin = grid.dy // params.txt_ymargin_r
     bot_txt_font = params.top_txt_font if params.bot_txt_font is None else params.bot_txt_font
     bot_txt_c = params.top_txt_c if params.bot_txt_c is None else params.bot_txt_c
 
-    # ---- Create Grid
-    grid_di, grid_dj = display_grid(window, card_size, color=params.grid_c)
-    cell_nb = grid_di * grid_dj
 
     # ---- Write Words
-    if len(words) > cell_nb:
+    if len(words) > grid.cell_nb:
         logger.warning(
             f"Too many words ({len(words)}) regarding the number of cells"
-            f" ({cell_nb}): will only use first ({cell_nb}) words"
+            f" ({grid.cell_nb}): will only use first ({grid.cell_nb}) words"
         )
-        words = words[:cell_nb]
+        words = words[:grid.cell_nb]
 
-    for (x, y), word in xy_enumerate(words, grid_dj, card_dx, card_dy):
-        ym = y+card_dy//2
+    for (x, y), word in xy_enumerate(words, grid.dj, grid.dx, grid.dy):
+        ym = y+grid.dy//2
         window.components += [
             Text(
                 word.upper(),
@@ -133,12 +154,12 @@ def display_word_cards(window, words, card_size, **params):
             ),
             Rectangle(
                 (x+txt_xmargin, ym+txt_ymargin//2),
-                (card_dx-3*txt_xmargin//2, txt_height+txt_ymargin),
+                (grid.dx-3*txt_xmargin//2, txt_height+txt_ymargin),
                 color=params.bot_txt_rect,
             ),
             Text(
                 word.upper(),
-                (x+card_dx-txt_xmargin, ym+txt_ymargin),
+                (x+grid.dx-txt_xmargin, ym+txt_ymargin),
                 height=txt_height,
                 align="top-right",
                 rotate=180,
@@ -191,8 +212,7 @@ def display_validation_cards(window, card_size, **params):
     window.components = []
 
     # ---- Display grid
-
-    grid_di, grid_dj = display_grid(window, card_size, color=params.grid_c)
+    grid = build_display_grid(window, card_size, color=params.grid_c)
 
     # Display cards content
     colors = (
@@ -200,13 +220,12 @@ def display_validation_cards(window, card_size, **params):
         + [params.t2_color] * params.guess_nb
         + [Color.mix(params.t1_color, params.t2_color)]
     )
-    assert len(colors) <= (grid_di * grid_dj), (
+    assert len(colors) <= (grid.di * grid.dj), (
         "Not enough space to display all validation cards"
     )
-    dx, dy = card_size
-    sx, sy = dx//3, dy//3
-    for (x, y), color in xy_enumerate(colors, grid_dj, *card_size):
-        x, y = x+dx//2, y+dy//2
+    sx, sy = grid.dx//3, grid.dy//3
+    for (x, y), color in xy_enumerate(colors, grid.dj, *card_size):
+        x, y = x+grid.dx//2, y+grid.dy//2
         window.components.append(
             Rectangle((x, y), (sx, sy), color=color, align='center')
         )
@@ -231,23 +250,21 @@ def display_board_cards(window, card_size, **params):
     assert window.initiated, "Window must be initialized"
     window.components = []
 
-    card_dx, card_dy = card_size
-    cell_dx = card_dx // params.board_size[0]
-    cell_dy = card_dy // params.board_size[1]
 
     # Main grid
-    grid_di, grid_dj = display_grid(window, card_size, color=params.grid_c, width=3)
-    card_nb = grid_di * grid_dj
+    grid = build_display_grid(window, card_size, color=params.grid_c)
 
     # Card grids
-    card_di, card_dj = params.board_size
-    colors = [params.t1_color, params.t2_color] * (card_nb//2)
-    for (x, y), color in xy_enumerate(colors, grid_dj, *card_size):
+    cell_dx = grid.dx // params.board_size[0]
+    cell_dy = grid.dy // params.board_size[1]
+    cell_di, cell_dj = params.board_size
+    colors = [params.t1_color, params.t2_color] * (grid.cell_nb//2)
+    for (x, y), color in xy_enumerate(colors, grid.dj, *card_size):
         # Inner grid
         window.components.append(Grid(
             cell_dx, cell_dy,
-            xbounds=(x, x+card_dx),
-            ybounds=(y, y+card_dy),
+            xbounds=(x, x+grid.dx),
+            ybounds=(y, y+grid.dy),
             color=color,
             inner_grid=True,
         ))
@@ -255,8 +272,8 @@ def display_board_cards(window, card_size, **params):
         # Card colors
         positions = [
             (x+i*cell_dx, y+j*cell_dy)
-            for i in range(card_di)
-            for j in range(card_dj)
+            for i in range(cell_di)
+            for j in range(cell_dj)
         ]
         card_colors = (
             [params.t1_color] * params.guess_nb
