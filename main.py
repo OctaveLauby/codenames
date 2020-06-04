@@ -12,7 +12,24 @@ OUTPUT_DIR = "outputs"
 
 
 # --------------------------------------------------------------------------- #
-# ---- WINDOW UTILS
+# ---- UTILS
+
+def screenshot(window, path):
+    """Screenshot window
+
+    Args:
+        window (oldisplay.Window)
+        output (str): relative path to output directory to save screenshot
+    """
+    tick = window.ticks
+    wait_until(lambda: window.ticks > tick, timeout=5 * window.settings.fps)
+    mkdirs(dirname(path))
+    pg.image.save(window.screen, path)
+    logger.info(f"Screenshot made and saved at '{path}'")
+
+
+# --------------------------------------------------------------------------- #
+# ---- GRID
 
 GRID_PARAMS = {
     'color': 'light_grey',
@@ -25,6 +42,8 @@ class CardGrid:
 
     def __init__(self, window, card_size, **params):
         params = read_params(params, GRID_PARAMS)
+        print(params)
+
 
         # Page dimensions
         page_x, page_y = window.settings.size
@@ -89,20 +108,6 @@ def build_display_grid(window, card_size, **params):
     return grid
 
 
-def screenshot(window, path):
-    """Screenshot window
-
-    Args:
-        window (oldisplay.Window)
-        output (str): relative path to output directory to save screenshot
-    """
-    tick = window.ticks
-    wait_until(lambda: window.ticks > tick, timeout=5 * window.settings.fps)
-    mkdirs(dirname(path))
-    pg.image.save(window.screen, path)
-    logger.info(f"Screenshot made and saved at '{path}'")
-
-
 # --------------------------------------------------------------------------- #
 # ---- WORD CARDS
 
@@ -115,7 +120,7 @@ WORD_PARAMS = {
     'bot_txt_font': None,
     'bot_txt_c': 'dodger_blue',
     'bot_txt_rect': 'lavender',
-    'grid_c': GRID_PARAMS['color'],
+    'grid': {},
 }
 
 
@@ -145,7 +150,8 @@ def display_word_cards(window, words, card_size, **params):
     window.components = []
 
     # ---- Create Grid
-    grid = build_display_grid(window, card_size, color=params.grid_c)
+    grid_params = params.pop('grid', {})
+    grid = build_display_grid(window, card_size, **grid_params)
 
     # ---- Read parameters
     txt_height = grid.dy // params.txt_height_r
@@ -194,7 +200,8 @@ def display_word_cards(window, words, card_size, **params):
 
 def create_word_cards(window, words, card_size, directory, **params):
     """Create grids of word cards"""
-    grid = CardGrid(window, card_size)
+    grid_params = params.get('grid', {})
+    grid = CardGrid(window, card_size, **grid_params)
 
     path_frmt = join(directory, "word_cards_{:02d}.jpg")
     for count, i in enumerate(range(0, len(words), grid.cell_nb), 1):
@@ -217,20 +224,31 @@ GAME_PARAMS = {
     't2_color': "corn_flower_blue",
     'neutral_color': "pale_golden_rod",
     'death_color': "black",
-    'disk_r': 6,
-    'grid_c': GRID_PARAMS['color'],
+    'grid': {},
 }
+
+VALIDATION_PARAMS = GAME_PARAMS.copy()
+VALIDATION_PARAMS.update({
+    'form_ratio': 4,
+})
+
+BOARD_PARAMS = GAME_PARAMS.copy()
+BOARD_PARAMS.update({
+    'form_ratio': 4,
+    'grid': {'width': 3},
+})
 
 # -- Validation Cards
 
 def display_validation_cards(window, card_size, **params):
     """Display validation cards on window"""
-    params = read_params(params, GAME_PARAMS)
+    params = read_params(params, VALIDATION_PARAMS)
     assert window.initiated, "Window must be initialized"
     window.components = []
 
     # ---- Display grid
-    grid = build_display_grid(window, card_size, color=params.grid_c)
+    grid_params = params.pop('grid', {})
+    grid = build_display_grid(window, card_size, **grid_params)
 
     # Display cards content
     colors = (
@@ -241,7 +259,7 @@ def display_validation_cards(window, card_size, **params):
     assert len(colors) <= (grid.i_max * grid.j_max), (
         "Not enough space to display all validation cards"
     )
-    sx, sy = grid.dx//3, grid.dy//3
+    sx, sy = grid.dx//params.form_ratio, grid.dy//params.form_ratio
     for (x, y), color in grid.xy_enum(colors):
         x, y = x+grid.dx//2, y+grid.dy//2
         window.components.append(
@@ -264,13 +282,14 @@ def create_validation_cards(window, card_size, directory, **params):
 
 def display_board_cards(window, card_size, **params):
     """Display validation cards on window"""
-    params = read_params(params, GAME_PARAMS)
+    params = read_params(params, BOARD_PARAMS)
     assert window.initiated, "Window must be initialized"
     window.components = []
 
 
     # Main grid
-    grid = build_display_grid(window, card_size, color=params.grid_c)
+    grid_params = params.pop('grid', {})
+    grid = build_display_grid(window, card_size, **grid_params)
 
     # Card grids
     cell_dx = grid.dx // params.board_size[0]
@@ -301,7 +320,7 @@ def display_board_cards(window, card_size, **params):
         assert len(card_colors) < len(positions)
         card_colors += [params.neutral_color] * (len(positions)-len(card_colors))
         rd.shuffle(card_colors)
-        radius = min(cell_dx, cell_dx) // params.disk_r
+        radius = min(cell_dx, cell_dx) // (params.form_ratio*2)
         for (x, y), color in zip(positions, card_colors):
             window.components.append(Disk(
                 (x+cell_dx//2, y+cell_dy//2),
