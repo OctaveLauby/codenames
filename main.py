@@ -33,7 +33,7 @@ def screenshot(window, path):
 GRID_PARAMS = {
     'color': 'light_grey',
     'width': 1,
-    'xy_margin': (100, 100),
+    'xy_margin': (10, 10),
 }
 
 
