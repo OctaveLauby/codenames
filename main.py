@@ -33,75 +33,27 @@ def screenshot(window, path):
 GRID_PARAMS = {
     'color': 'light_grey',
     'width': 1,
-    'xy_margin': (10, 10),
+    'xy_margin': (100, 100),
 }
 
 
-class CardGrid:
+class CardGrid(Grid):
 
     def __init__(self, window, card_size, **params):
         params = read_params(params, GRID_PARAMS)
-
-        # Page dimensions
         page_x, page_y = window.settings.size
         x_margin, y_margin = params.pop('xy_margin')
         assert page_x > 2*x_margin, "x-margin must be twice smaller than page x-size"
         assert page_y > 2*y_margin, "y-margin must be twice smaller than page y-size"
         params['xbounds'] = (x_margin, page_x-x_margin)
         params['ybounds'] = (y_margin, page_y-y_margin)
-
-        # Card dimensions
-        card_x, card_y = card_size
-        assert page_x > card_x, "card x-size must be smaller than page x-size"
-        assert page_y > card_y, "card y-size must be smaller than page y-size"
-
-        # Grid information
-        i_max = (page_y-2*y_margin) // card_y
-        j_max = (page_x-2*x_margin) // card_x
-        cell_nb = i_max * j_max
-
-        # Attributes
-        self.params = params
+        super().__init__(*card_size, **params)
         self.window = window
-        self.i_max = i_max
-        self.j_max = j_max
-        self.start = (x_margin, y_margin)
-        self.dx = card_x
-        self.dy = card_y
-        self.cell_nb = cell_nb
-        logger.debug(
-            f"Grid initialized with {self.i_max}x{self.j_max}={self.cell_nb} cells"
-        )
-
-    def display(self):
-        """Add grid to window components"""
-        self.window.components.append(Grid(self.dx, self.dy, **self.params))
-
-    def ij_enum(self, items):
-        """Enumerate items with i,j cell-positions"""
-        if len(items) > self.cell_nb:
-            logger.waring(
-                f"There are more items ({len(items)}) than the number of cells"
-                f" ({self.cell_nb}), last items will be skipped"
-            )
-        for k, item in enumerate(items):
-            j = k % self.j_max
-            i = k // self.j_max
-            if i >= self.i_max:
-                break
-            yield (i, j), item
-
-
-    def xy_enum(self, items):
-        """Enumerate items with x,y cell-positions (top-left)"""
-        x0, y0 = self.start
-        for (i, j), item in self.ij_enum(items):
-            yield (x0+j*self.dx, y0+i*self.dy), item
-
+        self.init(self.window.screen)
 
 def build_display_grid(window, card_size, **params):
     grid = CardGrid(window, card_size, **params)
-    grid.display()
+    window.components.append(grid)
     return grid
 
 
@@ -300,7 +252,7 @@ def display_board_cards(window, card_size, **params):
             xbounds=(x, x+grid.dx),
             ybounds=(y, y+grid.dy),
             color=color,
-            inner_grid=True,
+            only_inside=True,
         ))
 
         # Card colors
@@ -350,7 +302,7 @@ if __name__ == "__main__":
     dictionary = "french"
     output_dir = join(OUTPUT_DIR, f"output_{dictionary}")
     page = (29.7, 21)
-    wcard = (5, 3.5)        # Word card
+    wcard = (4.6, 3)        # Word card
     bcard = (6, 6)          # Board card
     factor = 45
 
